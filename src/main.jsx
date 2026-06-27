@@ -5,6 +5,14 @@ import './styles.css';
 
 const STORAGE_KEY = 'bank-score-calculator-state';
 const LIMIT = 500;
+const SCORE_TYPES = [
+  { value: 'single', label: 'Single', multiplier: 1, bonus: 0 },
+  { value: 'single-100', label: 'Single 100', multiplier: 1, bonus: 100 },
+  { value: 'double', label: 'Double', multiplier: 2, bonus: 0 },
+  { value: 'double-50', label: 'Double 50', multiplier: 2, bonus: 50 },
+  { value: 'double-75', label: 'Double 75', multiplier: 2, bonus: 75 },
+  { value: 'double-100', label: 'Double 100', multiplier: 2, bonus: 100 },
+];
 
 const defaultState = {
   players: [],
@@ -45,10 +53,24 @@ function getActivePlayers(players, totals) {
   return players.filter((player) => totals[player.id] < LIMIT);
 }
 
+function formatScoreCalculation(round, playerId) {
+  if (!round.scoreType || !round.enteredScores) return String(round.scores[playerId] ?? 0);
+
+  const enteredScore = Number(round.enteredScores[playerId] || 0);
+  const type = SCORE_TYPES.find((item) => item.value === round.scoreType);
+  if (!type) return String(round.scores[playerId] ?? 0);
+
+  const parts = [String(enteredScore)];
+  if (type.multiplier === 2) parts.push('× 2');
+  if (type.bonus) parts.push(`+ ${type.bonus}`);
+  return `${parts.join(' ')} = ${round.scores[playerId] ?? 0}`;
+}
+
 function App() {
   const [state, setState] = useStoredState();
   const [setupNames, setSetupNames] = React.useState(['', '', '']);
   const [scoreDraft, setScoreDraft] = React.useState({});
+  const [scoreType, setScoreType] = React.useState('');
   const [editingRoundId, setEditingRoundId] = React.useState(null);
   const [editDraft, setEditDraft] = React.useState({});
 
@@ -90,24 +112,29 @@ function App() {
 
   function addRound(event) {
     event.preventDefault();
-    if (!activePlayers.length) return;
+    if (!activePlayers.length || !scoreType) return;
 
     const scores = {};
+    const enteredScores = {};
+    const selectedType = SCORE_TYPES.find((type) => type.value === scoreType);
     activePlayers.forEach((player) => {
-      scores[player.id] = Number(scoreDraft[player.id] || 0);
+      const enteredScore = Number(scoreDraft[player.id] || 0);
+      enteredScores[player.id] = enteredScore;
+      scores[player.id] = enteredScore * selectedType.multiplier + selectedType.bonus;
     });
 
     setState((current) => ({
       ...current,
-      rounds: [{ id: uid(), createdAt: new Date().toISOString(), scores }, ...current.rounds],
+      rounds: [{ id: uid(), createdAt: new Date().toISOString(), scoreType, enteredScores, scores }, ...current.rounds],
     }));
     setScoreDraft({});
+    setScoreType('');
   }
 
   function beginEdit(round) {
     const draft = {};
     state.players.forEach((player) => {
-      draft[player.id] = round.scores[player.id] ?? '';
+      draft[player.id] = round.enteredScores?.[player.id] ?? round.scores[player.id] ?? '';
     });
     setEditingRoundId(round.id);
     setEditDraft(draft);
@@ -119,10 +146,16 @@ function App() {
       rounds: current.rounds.map((round) => {
         if (round.id !== roundId) return round;
         const scores = {};
+        const enteredScores = {};
+        const type = SCORE_TYPES.find((item) => item.value === round.scoreType);
         current.players.forEach((player) => {
-          scores[player.id] = Number(editDraft[player.id] || 0);
+          const enteredScore = Number(editDraft[player.id] || 0);
+          enteredScores[player.id] = enteredScore;
+          scores[player.id] = type
+            ? enteredScore * type.multiplier + type.bonus
+            : enteredScore;
         });
-        return { ...round, scores };
+        return { ...round, enteredScores: type ? enteredScores : round.enteredScores, scores };
       }),
     }));
     setEditingRoundId(null);
@@ -257,6 +290,24 @@ function App() {
             <Plus size={20} aria-hidden="true" />
             <h2>Add scores</h2>
           </div>
+          <fieldset className="score-types">
+            <legend>Score type</legend>
+            <div className="score-type-options">
+              {SCORE_TYPES.map((type) => (
+                <label className="score-type-option" key={type.value}>
+                  <input
+                    type="radio"
+                    name="score-type"
+                    value={type.value}
+                    checked={scoreType === type.value}
+                    required
+                    onChange={(event) => setScoreType(event.target.value)}
+                  />
+                  <span>{type.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <div className="score-inputs">
             {activePlayers.map((player) => (
               <label className="score-field" key={player.id}>
@@ -271,7 +322,7 @@ function App() {
               </label>
             ))}
           </div>
-          <button className="primary-button full-width" disabled={!activePlayers.length || Boolean(winner)}>
+          <button className="primary-button full-width" disabled={!activePlayers.length || !scoreType || Boolean(winner)}>
             Save scores
           </button>
         </form>
@@ -320,7 +371,7 @@ function App() {
                               onChange={(event) => setEditDraft((draft) => ({ ...draft, [player.id]: event.target.value }))}
                             />
                           ) : (
-                            <b>{round.scores[player.id] ?? 0}</b>
+                            <b>{formatScoreCalculation(round, player.id)}</b>
                           )}
                         </label>
                       ))}

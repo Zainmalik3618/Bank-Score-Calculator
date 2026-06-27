@@ -23,6 +23,10 @@ input {
   font: inherit;
 }
 
+fieldset {
+  min-width: 0;
+}
+
 button {
   cursor: pointer;
 }
@@ -295,6 +299,53 @@ input:focus {
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
 }
 
+.score-types {
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.score-types legend {
+  margin-bottom: 8px;
+  color: #555c51;
+  font-size: 0.87rem;
+  font-weight: 700;
+}
+
+.score-type-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.score-type-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border: 1px solid #d9ddd1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #555c51;
+  background: #fbfcf8;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.score-type-option:has(input:checked) {
+  border-color: #2f6f60;
+  color: #244f45;
+  background: #edf5f1;
+}
+
+.score-type-option input {
+  width: 16px;
+  min-height: auto;
+  margin: 0;
+  accent-color: #244f45;
+}
+
 .history-panel {
   display: grid;
   gap: 16px;
@@ -347,8 +398,10 @@ input:focus {
   min-height: 40px;
   place-items: center;
   border-radius: 8px;
+  padding: 8px;
   color: #244f45;
   background: #edf5f1;
+  text-align: center;
 }
 
 .mini-score input {
