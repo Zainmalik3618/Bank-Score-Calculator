@@ -1,6 +1,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { Plus, RotateCcw, Save, Trash2, Trophy, Undo2, Users } from 'lucide-react';
+import {
+  ArrowRight, Check, Edit3, History, Infinity as InfinityIcon, Plus, RotateCcw, Save,
+  Sparkles, Trash2, Trophy, UserRoundPlus, Users, X,
+} from 'lucide-react';
 import './styles.css';
 
 const STORAGE_KEY = 'bank-score-calculator-state';
@@ -66,7 +69,7 @@ function formatScoreCalculation(round, playerId) {
   if (!round.scoreType || !round.enteredScores) return String(round.scores[playerId] ?? 0);
 
   const enteredScore = round.enteredScores[playerId];
-  if (enteredScore === null || enteredScore === undefined || enteredScore === '') return 'Won — 0';
+  if (enteredScore === null || enteredScore === undefined || enteredScore === '') return 'Won';
   const type = SCORE_TYPES.find((item) => item.value === round.scoreType);
   if (!type) return String(round.scores[playerId] ?? 0);
 
@@ -83,6 +86,8 @@ function App() {
   const [scoreType, setScoreType] = React.useState('');
   const [editingRoundId, setEditingRoundId] = React.useState(null);
   const [editDraft, setEditDraft] = React.useState({});
+  const [setupError, setSetupError] = React.useState('');
+  const [scoreError, setScoreError] = React.useState('');
 
   const totals = React.useMemo(() => getTotals(state.players, state.rounds), [state.players, state.rounds]);
   const activePlayers = React.useMemo(() => getActivePlayers(state.players, totals), [state.players, totals]);
@@ -107,12 +112,20 @@ function App() {
 
   function updateSetupName(index, value) {
     setSetupNames((names) => names.map((name, itemIndex) => (itemIndex === index ? value : name)));
+    setSetupError('');
   }
 
   function startGame(event) {
     event.preventDefault();
     const names = setupNames.map((name) => name.trim()).filter(Boolean);
-    if (names.length < MIN_PLAYERS || names.length > MAX_PLAYERS) return;
+    if (names.length < MIN_PLAYERS || names.length > MAX_PLAYERS) {
+      setSetupError('Add at least two player names to continue.');
+      return;
+    }
+    if (new Set(names.map((name) => name.toLowerCase())).size !== names.length) {
+      setSetupError('Each player needs a unique name.');
+      return;
+    }
     setState({
       players: names.map((name) => ({ id: uid(), name })),
       rounds: [],
@@ -122,13 +135,19 @@ function App() {
 
   function addRound(event) {
     event.preventDefault();
-    if (!activePlayers.length || !scoreType) return;
+    if (!activePlayers.length || !scoreType) {
+      setScoreError('Choose a score type before saving.');
+      return;
+    }
 
     const scores = {};
     const enteredScores = {};
     const selectedType = SCORE_TYPES.find((type) => type.value === scoreType);
     const parsedScores = activePlayers.map((player) => [player.id, parseScore(scoreDraft[player.id])]);
-    if (parsedScores.some(([, score]) => score === undefined)) return;
+    if (parsedScores.some(([, score]) => score === undefined)) {
+      setScoreError('Scores must be between 0 and 130. Leave the winner blank.');
+      return;
+    }
     parsedScores.forEach(([playerId, enteredScore]) => {
       enteredScores[playerId] = enteredScore;
       scores[playerId] = enteredScore === null
@@ -142,12 +161,16 @@ function App() {
     }));
     setScoreDraft({});
     setScoreType('');
+    setScoreError('');
   }
 
   function beginEdit(round) {
     const draft = {};
     state.players.forEach((player) => {
-      draft[player.id] = round.enteredScores?.[player.id] ?? round.scores[player.id] ?? '';
+      const hasEnteredScore = round.enteredScores
+        && Object.prototype.hasOwnProperty.call(round.enteredScores, player.id);
+      const enteredScore = hasEnteredScore ? round.enteredScores[player.id] : round.scores[player.id];
+      draft[player.id] = enteredScore === null || enteredScore === undefined ? '' : enteredScore;
     });
     setEditingRoundId(round.id);
     setEditDraft(draft);
@@ -201,24 +224,29 @@ function App() {
     setEditingRoundId(null);
   }
 
+  const canStart = setupNames.filter((name) => name.trim()).length >= MIN_PLAYERS;
+
   if (!state.players.length) {
     return (
       <main className="shell setup-shell">
         <section className="setup-panel">
-          <div className="brand-row">
-            <div className="brand-mark">
-              <Trophy size={26} aria-hidden="true" />
-            </div>
+          <div className="setup-intro">
+            <div className="brand-chip"><Sparkles size={15} /> Bank scorekeeper</div>
             <div>
-              <p className="eyebrow">Bank</p>
-              <h1>Score Calculator</h1>
+              <h1>Keep score.<br /><span>Stay in the game.</span></h1>
+              <p>A fast, fuss-free scorekeeper for 2–4 players. First to 500 is out; last player standing wins.</p>
+            </div>
+            <div className="setup-rules" aria-label="Game overview">
+              <div><strong>2–4</strong><span>players</span></div>
+              <div><strong>500</strong><span>point limit</span></div>
+              <div><strong className="infinity-value"><InfinityIcon size={23} strokeWidth={2.4} aria-hidden="true" /></strong><span>good times</span></div>
             </div>
           </div>
 
           <form className="setup-form" onSubmit={startGame}>
             <div className="form-heading">
-              <Users size={22} aria-hidden="true" />
-              <h2>Players</h2>
+              <div className="title-icon"><Users size={20} aria-hidden="true" /></div>
+              <div><p className="eyebrow">New game</p><h2>Who’s playing?</h2></div>
             </div>
 
             <div className="player-list">
@@ -230,7 +258,9 @@ function App() {
                       type="text"
                       value={name}
                       onChange={(event) => updateSetupName(index, event.target.value)}
-                      placeholder={`Name ${index + 1}`}
+                      placeholder="Enter a name"
+                      maxLength="24"
+                      autoFocus={index === 0}
                     />
                     {setupNames.length > MIN_PLAYERS && (
                       <button type="button" className="icon-button danger" onClick={() => removeSetupPlayer(index)} aria-label="Remove player">
@@ -242,6 +272,8 @@ function App() {
               ))}
             </div>
 
+            {setupError && <p className="form-error" role="alert">{setupError}</p>}
+
             <div className="setup-actions">
               <button
                 type="button"
@@ -249,15 +281,15 @@ function App() {
                 onClick={addSetupPlayer}
                 disabled={setupNames.length >= MAX_PLAYERS}
               >
-                <Plus size={18} aria-hidden="true" />
-                Add player
+                <UserRoundPlus size={18} aria-hidden="true" />
+                Add another
               </button>
               <button
                 type="submit"
                 className="primary-button"
-                disabled={setupNames.filter((name) => name.trim()).length < MIN_PLAYERS}
+                disabled={!canStart}
               >
-                Start game
+                Start game <ArrowRight size={18} aria-hidden="true" />
               </button>
             </div>
           </form>
@@ -269,16 +301,16 @@ function App() {
   return (
     <main className="shell">
       <header className="app-header">
-        <div>
-          <p className="eyebrow">Bank</p>
-          <h1>Score Calculator</h1>
+        <div className="app-brand">
+          <div className="brand-mark"><Trophy size={21} aria-hidden="true" /></div>
+          <div><p className="eyebrow">Live game</p><h1>Bank</h1></div>
         </div>
         <div className="header-actions">
-          <button className="secondary-button compact" onClick={newGameSamePlayers}>
+          <button className="secondary-button compact restart-action" onClick={newGameSamePlayers} title="Restart game" aria-label="Restart game">
             <RotateCcw size={18} aria-hidden="true" />
-            New round set
+            Restart game
           </button>
-          <button className="secondary-button compact danger-text" onClick={clearData}>
+          <button className="secondary-button compact danger-text clear-action" onClick={clearData} title="Clear all data" aria-label="Clear all data">
             <Trash2 size={18} aria-hidden="true" />
             Clear data
           </button>
@@ -287,23 +319,39 @@ function App() {
 
       {winner && (
         <section className="winner-band">
-          <Trophy size={24} aria-hidden="true" />
-          <strong>{winner.name} wins</strong>
-          <span>All other players reached {LIMIT}.</span>
+          <div className="winner-icon"><Trophy size={26} aria-hidden="true" /></div>
+          <div><p>We have a winner</p><strong>{winner.name} takes the game!</strong><span> Everyone else reached {LIMIT} points.</span></div>
         </section>
       )}
+
+      <div className="content-heading">
+        <div><p className="eyebrow">Scoreboard</p><h2>Game overview</h2></div>
+        <span>{state.rounds.length} {state.rounds.length === 1 ? 'entry' : 'entries'} played</span>
+      </div>
 
       <section className="scoreboard" aria-label="Scoreboard">
         {state.players.map((player) => {
           const total = totals[player.id] || 0;
           const eliminated = total >= LIMIT;
+          const progress = Math.min(total / LIMIT, 1);
+          const progressLevel = progress >= 0.9
+            ? 'critical'
+            : progress >= 0.7
+              ? 'high'
+              : progress >= 0.4
+                ? 'medium'
+                : 'safe';
           return (
             <article className={`player-card ${eliminated ? 'eliminated' : ''}`} key={player.id}>
-              <div>
-                <h2>{player.name}</h2>
-                <p>{eliminated ? 'Eliminated' : `${LIMIT - total} points left`}</p>
+              <div className="player-card-top">
+                <div className="player-avatar">{player.name.charAt(0).toUpperCase()}</div>
+                <span className="status-pill">{eliminated ? 'Out' : 'Playing'}</span>
               </div>
-              <strong>{total}</strong>
+              <div className="player-score"><h3>{player.name}</h3><strong>{total}</strong><span>/ {LIMIT}</span></div>
+              <div className={`progress-track ${progressLevel}`}>
+                <span style={{ width: `${progress * 100}%` }} />
+              </div>
+              <p>{eliminated ? 'Reached the limit' : `${LIMIT - total} points until elimination`}</p>
             </article>
           );
         })}
@@ -312,8 +360,8 @@ function App() {
       <section className="work-grid">
         <form className="entry-panel" onSubmit={addRound}>
           <div className="section-title">
-            <Plus size={20} aria-hidden="true" />
-            <h2>Add scores</h2>
+            <div className="title-icon accent"><Plus size={20} aria-hidden="true" /></div>
+            <div><p className="eyebrow">Next entry</p><h2>Add scores</h2></div>
           </div>
           <fieldset className="score-types">
             <legend>Score type</legend>
@@ -326,9 +374,12 @@ function App() {
                     value={type.value}
                     checked={scoreType === type.value}
                     required
-                    onChange={(event) => setScoreType(event.target.value)}
+                    onChange={(event) => {
+                      setScoreType(event.target.value);
+                      setScoreError('');
+                    }}
                   />
-                  <span>{type.label}</span>
+                  <span>{type.label}<small>{type.multiplier === 2 ? '2× score' : 'Base score'}{type.bonus ? ` + ${type.bonus}` : ''}</small></span>
                 </label>
               ))}
             </div>
@@ -343,25 +394,31 @@ function App() {
                   min="0"
                   max="130"
                   value={scoreDraft[player.id] ?? ''}
-                  onChange={(event) => setScoreDraft((draft) => ({ ...draft, [player.id]: event.target.value }))}
+                  onChange={(event) => {
+                    setScoreDraft((draft) => ({ ...draft, [player.id]: event.target.value }));
+                    setScoreError('');
+                  }}
                   placeholder="0"
+                  aria-describedby={`score-help-${player.id}`}
                 />
+                <small id={`score-help-${player.id}`}>Leave blank if they won</small>
               </label>
             ))}
           </div>
+          {scoreError && <p className="form-error" role="alert">{scoreError}</p>}
           <button className="primary-button full-width" disabled={!activePlayers.length || !scoreType || Boolean(winner)}>
-            Save scores
+            <Check size={18} /> Save entry
           </button>
         </form>
 
         <section className="history-panel">
           <div className="section-title">
-            <Undo2 size={20} aria-hidden="true" />
-            <h2>Score history</h2>
+            <div className="title-icon"><History size={20} aria-hidden="true" /></div>
+            <div><p className="eyebrow">Timeline</p><h2>Score history</h2></div>
           </div>
 
           {state.rounds.length === 0 ? (
-            <div className="empty-state">No scores added yet.</div>
+            <div className="empty-state"><History size={26} /><strong>No entries yet</strong><span>Your saved scores will appear here.</span></div>
           ) : (
             <div className="history-list">
               {state.rounds.map((round, index) => {
@@ -369,7 +426,7 @@ function App() {
                 return (
                   <article className="history-item" key={round.id}>
                     <div className="history-top">
-                      <strong>Entry {state.rounds.length - index}</strong>
+                      <div><strong>Entry {state.rounds.length - index}</strong><span>{SCORE_TYPES.find((type) => type.value === round.scoreType)?.label || 'Score'}</span></div>
                       <div className="history-actions">
                         {isEditing ? (
                           <button className="icon-button success" type="button" onClick={() => saveEdit(round.id)} aria-label="Save edited score">
@@ -377,7 +434,7 @@ function App() {
                           </button>
                         ) : (
                           <button className="icon-button" type="button" onClick={() => beginEdit(round)} aria-label="Edit score entry">
-                            <Undo2 size={17} aria-hidden="true" />
+                            <Edit3 size={17} aria-hidden="true" />
                           </button>
                         )}
                         <button className="icon-button danger" type="button" onClick={() => deleteRound(round.id)} aria-label="Delete score entry">
@@ -400,11 +457,14 @@ function App() {
                               onChange={(event) => setEditDraft((draft) => ({ ...draft, [player.id]: event.target.value }))}
                             />
                           ) : (
-                            <b>{formatScoreCalculation(round, player.id)}</b>
+                            <b className={round.enteredScores?.[player.id] == null ? 'round-winner' : 'round-loser'}>
+                              {formatScoreCalculation(round, player.id)}
+                            </b>
                           )}
                         </label>
                       ))}
                     </div>
+                    {isEditing && <button type="button" className="cancel-edit" onClick={() => setEditingRoundId(null)}><X size={15} /> Cancel editing</button>}
                   </article>
                 );
               })}
