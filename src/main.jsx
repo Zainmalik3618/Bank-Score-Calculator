@@ -5,8 +5,11 @@ import './styles.css';
 
 const STORAGE_KEY = 'bank-score-calculator-state';
 const LIMIT = 500;
+const MIN_PLAYERS = 2;
+const MAX_PLAYERS = 4;
 const SCORE_TYPES = [
   { value: 'single', label: 'Single', multiplier: 1, bonus: 0 },
+  { value: 'single-50', label: 'Single 50', multiplier: 1, bonus: 50 },
   { value: 'single-100', label: 'Single 100', multiplier: 1, bonus: 100 },
   { value: 'double', label: 'Double', multiplier: 2, bonus: 0 },
   { value: 'double-50', label: 'Double 50', multiplier: 2, bonus: 50 },
@@ -53,10 +56,17 @@ function getActivePlayers(players, totals) {
   return players.filter((player) => totals[player.id] < LIMIT);
 }
 
+function parseScore(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const score = Number(value);
+  return Number.isFinite(score) && score >= 0 && score <= 130 ? score : undefined;
+}
+
 function formatScoreCalculation(round, playerId) {
   if (!round.scoreType || !round.enteredScores) return String(round.scores[playerId] ?? 0);
 
-  const enteredScore = Number(round.enteredScores[playerId] || 0);
+  const enteredScore = round.enteredScores[playerId];
+  if (enteredScore === null || enteredScore === undefined || enteredScore === '') return 'Won — 0';
   const type = SCORE_TYPES.find((item) => item.value === round.scoreType);
   if (!type) return String(round.scores[playerId] ?? 0);
 
@@ -68,7 +78,7 @@ function formatScoreCalculation(round, playerId) {
 
 function App() {
   const [state, setState] = useStoredState();
-  const [setupNames, setSetupNames] = React.useState(['', '', '']);
+  const [setupNames, setSetupNames] = React.useState(['', '']);
   const [scoreDraft, setScoreDraft] = React.useState({});
   const [scoreType, setScoreType] = React.useState('');
   const [editingRoundId, setEditingRoundId] = React.useState(null);
@@ -88,7 +98,7 @@ function App() {
   }, [activePlayers.length]);
 
   function addSetupPlayer() {
-    setSetupNames((names) => [...names, '']);
+    setSetupNames((names) => (names.length < MAX_PLAYERS ? [...names, ''] : names));
   }
 
   function removeSetupPlayer(index) {
@@ -102,7 +112,7 @@ function App() {
   function startGame(event) {
     event.preventDefault();
     const names = setupNames.map((name) => name.trim()).filter(Boolean);
-    if (names.length < 2) return;
+    if (names.length < MIN_PLAYERS || names.length > MAX_PLAYERS) return;
     setState({
       players: names.map((name) => ({ id: uid(), name })),
       rounds: [],
@@ -117,10 +127,13 @@ function App() {
     const scores = {};
     const enteredScores = {};
     const selectedType = SCORE_TYPES.find((type) => type.value === scoreType);
-    activePlayers.forEach((player) => {
-      const enteredScore = Number(scoreDraft[player.id] || 0);
-      enteredScores[player.id] = enteredScore;
-      scores[player.id] = enteredScore * selectedType.multiplier + selectedType.bonus;
+    const parsedScores = activePlayers.map((player) => [player.id, parseScore(scoreDraft[player.id])]);
+    if (parsedScores.some(([, score]) => score === undefined)) return;
+    parsedScores.forEach(([playerId, enteredScore]) => {
+      enteredScores[playerId] = enteredScore;
+      scores[playerId] = enteredScore === null
+        ? 0
+        : enteredScore * selectedType.multiplier + selectedType.bonus;
     });
 
     setState((current) => ({
@@ -141,6 +154,8 @@ function App() {
   }
 
   function saveEdit(roundId) {
+    const parsedScores = state.players.map((player) => [player.id, parseScore(editDraft[player.id])]);
+    if (parsedScores.some(([, score]) => score === undefined)) return;
     setState((current) => ({
       ...current,
       rounds: current.rounds.map((round) => {
@@ -148,10 +163,11 @@ function App() {
         const scores = {};
         const enteredScores = {};
         const type = SCORE_TYPES.find((item) => item.value === round.scoreType);
-        current.players.forEach((player) => {
-          const enteredScore = Number(editDraft[player.id] || 0);
-          enteredScores[player.id] = enteredScore;
-          scores[player.id] = type
+        parsedScores.forEach(([playerId, enteredScore]) => {
+          enteredScores[playerId] = enteredScore;
+          scores[playerId] = enteredScore === null
+            ? 0
+            : type
             ? enteredScore * type.multiplier + type.bonus
             : enteredScore;
         });
@@ -174,7 +190,7 @@ function App() {
     if (!confirmed) return;
     localStorage.removeItem(STORAGE_KEY);
     setState(defaultState);
-    setSetupNames(['', '', '']);
+    setSetupNames(['', '']);
     setScoreDraft({});
     setEditingRoundId(null);
   }
@@ -216,7 +232,7 @@ function App() {
                       onChange={(event) => updateSetupName(index, event.target.value)}
                       placeholder={`Name ${index + 1}`}
                     />
-                    {setupNames.length > 2 && (
+                    {setupNames.length > MIN_PLAYERS && (
                       <button type="button" className="icon-button danger" onClick={() => removeSetupPlayer(index)} aria-label="Remove player">
                         <Trash2 size={18} aria-hidden="true" />
                       </button>
@@ -227,11 +243,20 @@ function App() {
             </div>
 
             <div className="setup-actions">
-              <button type="button" className="secondary-button" onClick={addSetupPlayer}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={addSetupPlayer}
+                disabled={setupNames.length >= MAX_PLAYERS}
+              >
                 <Plus size={18} aria-hidden="true" />
                 Add player
               </button>
-              <button type="submit" className="primary-button" disabled={setupNames.filter((name) => name.trim()).length < 2}>
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={setupNames.filter((name) => name.trim()).length < MIN_PLAYERS}
+              >
                 Start game
               </button>
             </div>
@@ -315,6 +340,8 @@ function App() {
                 <input
                   type="number"
                   inputMode="numeric"
+                  min="0"
+                  max="130"
                   value={scoreDraft[player.id] ?? ''}
                   onChange={(event) => setScoreDraft((draft) => ({ ...draft, [player.id]: event.target.value }))}
                   placeholder="0"
@@ -367,6 +394,8 @@ function App() {
                             <input
                               type="number"
                               inputMode="numeric"
+                              min="0"
+                              max="130"
                               value={editDraft[player.id] ?? ''}
                               onChange={(event) => setEditDraft((draft) => ({ ...draft, [player.id]: event.target.value }))}
                             />
