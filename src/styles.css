@@ -33,7 +33,7 @@ h1, h2, h3, strong { font-family: 'Manrope', sans-serif; }
 .setup-panel { display: grid; grid-template-columns: .9fr 1.1fr; width: min(960px, 100%); overflow: hidden; border: 1px solid rgba(23,107,82,.12); border-radius: 28px; background: var(--surface); box-shadow: 0 28px 80px rgba(31,66,53,.13); }
 .setup-intro { display: flex; flex-direction: column; justify-content: space-between; min-height: 590px; padding: 48px; color: white; background: linear-gradient(145deg, #0b4334, #19785b); position: relative; overflow: hidden; }
 .setup-intro::after { content: ''; position: absolute; width: 300px; height: 300px; right: -130px; bottom: -110px; border: 50px solid rgba(255,255,255,.06); border-radius: 50%; }
-.brand-chip { display: inline-flex; align-items: center; gap: 7px; width: fit-content; padding: 8px 12px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; font-size: .78rem; font-weight: 700; background: rgba(255,255,255,.09); }
+.brand-chip { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 8px 13px 8px 10px; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; font-size: .78rem; font-weight: 700; background: rgba(255,255,255,.09); }.card-game-icon { display: block; flex: 0 0 auto; overflow: visible; }
 .setup-intro h1 { margin-top: 28px; font-size: clamp(2.5rem, 4.7vw, 4rem); line-height: 1.05; letter-spacing: -.055em; }
 .setup-intro h1 span { color: #a9e2c8; }
 .setup-intro > div > p { max-width: 400px; margin-top: 20px; color: rgba(255,255,255,.7); font-size: 1rem; line-height: 1.7; }

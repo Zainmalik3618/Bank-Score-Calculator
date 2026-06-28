@@ -2,7 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   ArrowRight, Check, Edit3, History, Infinity as InfinityIcon, Plus, RotateCcw, Save,
-  Sparkles, Trash2, Trophy, UserRoundPlus, Users, X,
+  Trash2, Trophy, UserRoundPlus, Users, X,
 } from 'lucide-react';
 import './styles.css';
 
@@ -46,6 +46,26 @@ function useStoredState() {
 
 function uid() {
   return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+}
+
+function CardGameIcon({ size = 18 }) {
+  return (
+    <svg
+      className="card-game-icon"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <rect x="3.5" y="5.5" width="11" height="15" rx="2.2" transform="rotate(-12 3.5 5.5)" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7.1 9.1c.8-.9 2.2-.8 2.8.2.2.3.3.6.3.9.3-.1.7-.1 1 .1 1.1.4 1.5 1.8.8 2.7-.9 1.2-2.7.8-3.4-.2-.3 1-.2 1.8.2 2.4" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="10" y="3" width="10.5" height="15" rx="2.2" fill="#176b52" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M15.25 7.1c-1.2 1.4-2.35 2.25-2.35 3.55a2.35 2.35 0 0 0 4.7 0c0-1.3-1.15-2.15-2.35-3.55Z" fill="currentColor" />
+      <path d="M15.25 12.65v2.05m-1.2 0h2.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function getTotals(players, rounds) {
@@ -231,10 +251,10 @@ function App() {
       <main className="shell setup-shell">
         <section className="setup-panel">
           <div className="setup-intro">
-            <div className="brand-chip"><Sparkles size={15} /> Bank scorekeeper</div>
+            <div className="brand-chip"><CardGameIcon size={19} /> Bank scorekeeper</div>
             <div>
               <h1>Keep score.<br /><span>Stay in the game.</span></h1>
-              <p>A fast, fuss-free scorekeeper for 2–4 players. First to 500 is out; last player standing wins.</p>
+              <p>A fast, hassle-free scorekeeper for 2–4 players. First to 500 is out; last player standing wins.</p>
             </div>
             <div className="setup-rules" aria-label="Game overview">
               <div><strong>2–4</strong><span>players</span></div>
